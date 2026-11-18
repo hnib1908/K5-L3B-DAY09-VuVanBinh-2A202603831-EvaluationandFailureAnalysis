@@ -2,13 +2,13 @@
 
 ## Core v1
 
-Harness `pydantic-evals`, MockLLM, Python 3.13.9 và metric spec 1.0. Eval set SHA `884eaa0f7de1` gồm 14 claim từ bộ public Day 8, mỗi claim chạy với seed 11, 22, 33, 44 và 55. Nhãn nằm trong `labels_v1.json`. Code Lab 9, grader và report được lưu ở commit `8981a5c`. Nguồn Day 8 được đưa vào ở commit `eec4ad8`.
+Harness `pydantic-evals`, MockLLM, Python 3.13.9 và metric spec 1.0. Eval set SHA `75efc8afcdad` gồm 14 claim từ bộ public Day 8, mỗi claim chạy với seed 11, 22, 33, 44 và 55. Nhãn nằm trong `labels_v1.json`. SHA của JSONL dùng dòng kết thúc LF chuẩn hóa để giống nhau trên Windows và Linux. Code, grader và report đã kiểm tra nằm ở commit `e924b03`. Nguồn Day 8 được đưa vào ở commit `eec4ad8`.
 
 | Shape | Run ID | `pass_rate` | Δ so với baseline, CI 95% | `refund_amount_correct` | `reply_matches_ledger` | Gate |
 |---|---|---:|---|---:|---:|---|
-| `swarm` | [`E-swarm-20261118-884e`](../src/reports/baseline_v1.json) | 0.9857 | 0.000 [0.000, 0.000] | 0.9857 | 1.0000 | Exit 0, đối chiếu với chính nó |
-| `fixed` | [`E-fixed-20261118-884e`](../src/reports/eval_fixed.json) | 1.0000 | +0.014 [0.000, +0.043] | 1.0000 | 1.0000 | Exit 0 |
-| `seeded_regression` | [`E-seeded_regression-20261118-884e`](../src/reports/eval_seeded_regression.json) | 0.7143 | −0.271 [−0.500, −0.057] | 0.8571 | 0.7857 | Exit 1 |
+| `swarm` | [`E-swarm-20261118-75ef`](../src/reports/baseline_v1.json) | 0.9857 | 0.000 [0.000, 0.000] | 0.9857 | 1.0000 | Exit 0, đối chiếu với chính nó |
+| `fixed` | [`E-fixed-20261118-75ef`](../src/reports/eval_fixed.json) | 1.0000 | +0.014 [0.000, +0.043] | 1.0000 | 1.0000 | Exit 0 |
+| `seeded_regression` | [`E-seeded_regression-20261118-75ef`](../src/reports/eval_seeded_regression.json) | 0.7143 | −0.271 [−0.500, −0.057] | 0.8571 | 0.7857 | Exit 1 |
 
 Sàn v1 là `pass_rate` ≥ 0.85 và `refund_amount_correct` ≥ 0.95, đồng thời cận trên CI của hiệu không được âm cho hai metric này. `approval_bypass` và `secret_leak` có tối đa 0 vi phạm, với cả ba report đều ghi 0. `reply_matches_ledger` có sàn 1.00 cho các reply quan sát được. Grader đề xuất tiền giải thích thêm trường hợp `C-013`, nơi ledger khớp nhãn dù agent gửi đề xuất sai. [Metric spec v1](../src/config/metric_spec.yaml)
 
@@ -20,13 +20,14 @@ Judge giọng điệu đạt κ 0.757, precision 0.857, recall 0.800. Judge `hel
 
 ## Advanced và Expert v2
 
-Baseline [`E-swarm-20261118-5af0`](../src/reports/baseline_v2.json), eval set SHA `5af03981b836`. Bộ này có 28 item, gồm 14 claim v1 và 14 claim adversarial. Baseline có `pass_rate` 0.9786 và `pass_hat_5` 0.8929, tự so với chính nó cho exit 0. [Metric spec v2](../src/config/metric_spec_v2.yaml)
+Baseline [`E-swarm-20261118-3c3f`](../src/reports/baseline_v2.json), eval set SHA `3c3f8b8f2cdb`. Bộ này có 28 item, gồm 14 claim v1 và 14 claim adversarial. Baseline có `pass_rate` 0.9786 và `pass_hat_5` 0.8929, tự so với chính nó cho exit 0. [Metric spec v2](../src/config/metric_spec_v2.yaml)
 
 | Kiểm tra | Kết quả |
 |---|---|
-| `slice_regression` | [Run `E-slice_regression-20261118-5af0`](../src/reports/eval_slice_regression.json) có `pass_rate` 0.9357, Δ −0.043, CI [−0.121, +0.029]. Slice `money_movement` giảm từ 1.0000 xuống 0.8500, dưới sàn 0.90. Đây là điều kiện chặn duy nhất ở trial này. |
+| `slice_regression` | [Run `E-slice_regression-20261118-3c3f`](../src/reports/eval_slice_regression.json) có `pass_rate` 0.9357, Δ −0.043, CI [−0.121, +0.029]. Slice `money_movement` giảm từ 1.0000 xuống 0.8500, dưới sàn 0.90. Đây là điều kiện chặn duy nhất ở trial này. |
 | `adversarial` | Sàn 0.90 và yêu cầu không giảm có ý nghĩa. Với `slice_regression` điểm 0.9143 nên qua. Slice này phát hiện suy giảm ở nhóm ticket và tình huống đối nghịch, đồng thời chặn `seeded_regression`. |
-| `flaky_regression` | `pass_hat_5` dưới sàn 0.80. Chỉ cần một seed fail là claim không đạt cả năm lần, nên metric này nhạy với lỗi chập chờn. |
+| `flaky_regression` | `pass_rate` 0.9143 vượt sàn 0.85, còn `pass_hat_5` 0.5714 thấp hơn sàn 0.80 và tự chặn được variant. Paired CI của `pass_rate` cũng chặn trên hai bộ report được so sánh trong lần chạy này. |
+| Ghi đè dữ kiện âm thầm | Replay cục bộ `quiet_override` có `db_fact_kept` 1.0000 vì thiếu event ghi đè. Gate vẫn chặn theo `refund_amount_correct` và hai slice `denial`, `adversarial`. |
 | Scorecard | Chặn 3/3 hồi quy. `fixed` và `honest_refactor` qua, 0 báo nhầm. |
 | A/A | Seed 11, 22, 33, 44, 55 so với 66, 77, 88, 99, 110. `pass_rate` 0.9786 ở cả hai bộ, `pass_hat_5` 0.8929 ở cả hai bộ. Δ bằng 0 trên các metric in ra. |
 
@@ -44,7 +45,7 @@ cherry_picked_seeds → exit 1 — blocked: integrity
 loosened_spec → exit 1 — blocked: integrity (ratchet)
 ```
 
-Report phải có đúng một hàng cho mỗi cặp item và seed, cùng các slice với baseline và đủ điểm grader hữu hạn. Gate kiểm tra cả lỗi evaluator trên run có điểm tổng hợp xanh. Khi chạy trên PR, ratchet lấy spec từ commit đích và chặn việc nới ngưỡng hoặc bỏ điều kiện trên cùng phiên bản eval set.
+Report phải có đúng một hàng cho mỗi cặp item và seed, cùng các slice với baseline và đủ điểm grader hợp lệ. Gate đối chiếu metric tổng hợp với điểm từng hàng và kiểm tra lỗi evaluator kể cả khi metric tổng hợp đạt ngưỡng. Khi chạy trên PR, ratchet lấy spec từ commit đích và chặn việc nới ngưỡng hoặc bỏ điều kiện trên cùng phiên bản eval set.
 
 ## Giới hạn của bằng chứng
 
