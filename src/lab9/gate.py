@@ -18,7 +18,7 @@ from statistics import mean
 
 from lab8.console import utf8_stdio
 from lab9 import stats
-from lab9.eval import SPEC, load_spec, per_item
+from lab9.eval import SPEC, aggregate, load_spec, per_item
 from lab9.graders import GRADERS
 
 
@@ -65,8 +65,8 @@ def integrity_check(pr: dict, base: dict, spec: dict, base_spec: dict | None = N
       - an item's slice tags in PR rows differ from the baseline's (relabelling an item out of a
         slice hides its regression from the slice gate)"""
     problems = []
-    row_metrics = {m["id"] for m in spec["metrics"] if m["id"] in GRADERS}
-    row_metrics.update(s["metric"] for s in spec.get("slices", []))
+    graded_metrics = [m["id"] for m in spec["metrics"] if m["id"] in GRADERS]
+    row_metrics = set(graded_metrics) | {s["metric"] for s in spec.get("slices", [])}
 
     def coverage(report: dict, label: str) -> dict:
         rows = report["rows"]
@@ -80,15 +80,22 @@ def integrity_check(pr: dict, base: dict, spec: dict, base_spec: dict | None = N
             problems.append(f"{label} does not contain exactly one row per item and seed")
         if report.get("evaluator_failures"):
             problems.append(f"{label} has evaluator failures")
-        bad_rows = sum(
-            any(not isinstance(r.get(m), (int, float)) or not isfinite(r[m]) for m in row_metrics)
-            for r in rows
-        )
+        bad_rows = sum(any(r.get(m) not in (0, 1) for m in row_metrics) for r in rows)
         if bad_rows:
-            problems.append(f"{label} has {bad_rows} rows with missing or non-finite grades")
-        for metric, value in report["metrics"].items():
+            problems.append(f"{label} has {bad_rows} rows with missing or invalid grades")
+        metrics = report["metrics"]
+        costs_valid = all(
+            isinstance(r.get("cost"), (int, float)) and isfinite(r["cost"])
+            for r in rows if "cost" in r or "cost_per_success" in metrics
+        )
+        if not costs_valid:
+            problems.append(f"{label} has missing or non-finite trial costs")
+        derived = aggregate(rows, graded_metrics, spec.get("pass_k", [])) if not bad_rows and costs_valid else {}
+        for metric, value in metrics.items():
             if value is not None and (not isinstance(value, (int, float)) or not isfinite(value)):
                 problems.append(f"{label} metric {metric} is not finite")
+            elif metric in derived and value != derived[metric]:
+                problems.append(f"{label} metric {metric} does not match the trial rows")
         return index
 
     pr_index, base_index = coverage(pr, "PR"), coverage(base, "baseline")

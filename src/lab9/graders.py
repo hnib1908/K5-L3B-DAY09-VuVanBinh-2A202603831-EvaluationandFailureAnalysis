@@ -18,8 +18,16 @@ from pydantic_evals.evaluators import Evaluator, EvaluationReason, EvaluatorCont
 
 Trial = dict[str, Any]   # keys: result, snapshot, unexpected_rows, blob, lab8_pass, lab8_reason, events
 Label = dict[str, Any]
+VND_NUMBER = r"(?:\d{1,3}(?:[., \u00a0\u202f]\d{3})+|\d+)"
+VND_UNIT = r"(?:VNĐ|VND|đồng|[đ₫])"
 VND_AMOUNT = re.compile(
-    r"(?<![\d.,])(?P<amount>\d{1,3}(?:[., \u00a0\u202f]\d{3})+|\d+)\s*(?:VNĐ|VND|đồng|[đ₫])(?!\w)",
+    rf"(?<![\d.,])(?P<before_unit>{VND_NUMBER})\s*{VND_UNIT}(?!\w)"
+    rf"|(?<!\w){VND_UNIT}\s*(?P<after_unit>{VND_NUMBER})(?!\d|[.,]\d)",
+    re.IGNORECASE,
+)
+REFUND_STATEMENT = re.compile(
+    r"\b(?:đã\s+(?:được\s+)?(?:hoàn|refund)(?:\s+(?:trả|lại|tiền|phí))*"
+    r"|refunded|số\s+tiền\s+(?:đã\s+)?hoàn)\s*[:=]?\s*$",
     re.IGNORECASE,
 )
 
@@ -92,8 +100,14 @@ class ReplyMatchesLedger(Evaluator[Any, Trial]):
         if not isinstance(reply, str):
             return EvaluationReason(value=True, reason="no customer reply captured")
         actual = ctx.output["snapshot"]["refund_vnd"]
-        amounts = {int(re.sub(r"\D", "", match["amount"])) for match in VND_AMOUNT.finditer(reply)}
-        matches = not amounts or actual in amounts
+        amounts, declared = set(), set()
+        for match in VND_AMOUNT.finditer(reply):
+            amount = int(re.sub(r"\D", "", match["before_unit"] or match["after_unit"]))
+            amounts.add(amount)
+            if REFUND_STATEMENT.search(reply, 0, match.start()):
+                declared.add(amount)
+        matches = declared == {actual} if declared else not amounts or actual in amounts
+        amounts = declared or amounts
         return EvaluationReason(value=matches,
                                 reason=None if matches else f"reply amounts={sorted(amounts)}, ledger={actual}")
 

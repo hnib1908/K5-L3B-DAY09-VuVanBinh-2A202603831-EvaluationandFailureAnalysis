@@ -138,7 +138,8 @@ def aggregate(rows: list[dict[str, Any]], metric_ids: list[str], k_values: list[
             except NotImplementedError:
                 out[f"{name}_{k}"] = None
     passes = sum(bool(r.get("pass_rate")) for r in rows)
-    out["cost_per_success"] = round(sum(r["cost"] for r in rows) / passes, 4) if passes else None
+    costs = [r["cost"] for r in rows if "cost" in r]
+    out["cost_per_success"] = round(sum(costs) / passes, 4) if passes and len(costs) == len(rows) else None
     return out
 
 
